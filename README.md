@@ -23,5 +23,5 @@ http://creativecommons.org/licenses/by-nc/3.0/
  ![](doc/images/board.jpg) ![](doc/images/esp.jpg)
 
 * gallery:
- ![](doc/images/0.jgp) ![](doc/images/1.jpg) ![](doc/images/2.jpg) ![](doc/images/3.jpg) ![](doc/images/4.jpg) ![](doc/images/5.jpg) ![](doc/images/6.jpg)
+ ![](doc/images/0.jpg) ![](doc/images/1.jpg) ![](doc/images/2.jpg) ![](doc/images/3.jpg) ![](doc/images/4.jpg) ![](doc/images/5.jpg) ![](doc/images/6.jpg)
 
