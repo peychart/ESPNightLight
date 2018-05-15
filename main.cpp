@@ -5,7 +5,6 @@
 #include <FS.h>
 #include <ESP8266HTTPUpdateServer.h>
 
-/*
 short ResetConfig = 4;     //Just change this value to reset current config on the next boot...
 #define DEFAULTWIFIPASS    "defaultPassword"
 #define MAXWIFIERRORS      10
@@ -17,10 +16,10 @@ String ssid[SSIDMax()];     //Identifiants WiFi /Wifi idents
 String password[SSIDMax()]; //Mots de passe WiFi /Wifi passwords
 bool WiFiAP=false;
 unsigned short nbWifiAttempts=MAXWIFIERRORS, WifiAPDelay;
-#define outputCount() 3
-String outputName[] = {"red", "green", "blue"};
-*/
+unsigned short prog=-1;
+
 enum {blue, green, red};
+enum {none, fixedBlue, fixedGreen, fixedRed, flashingBlue, flashingGreen, flashingRed};
 
 // Define Pins
 #define RED1         D4
@@ -31,18 +30,16 @@ enum {blue, green, red};
 #define GREEN2       D6
 #define BLUE2        D5
 
-#define fadingTime   50 // fading time between colors
+unsigned short fadingTime[] = {20, 20, 20}; // fading time between colors
 // define variables
 unsigned char redValue;
 unsigned char greenValue;
 unsigned char blueValue;
-unsigned char mainColor  = blue;
-unsigned char loopDelay  = 1;   // s
 
-/*
 ESP8266WebServer server(80); //Instanciation du serveur port 80
 ESP8266WebServer updater(8081);
 ESP8266HTTPUpdateServer httpUpdater;
+
 
 String getMyMacAddress(){
   char ret[18];
@@ -51,10 +48,9 @@ String getMyMacAddress(){
   return ret;
 }
 
-String getValues(){return "0,1,2,3,4,5";}
+String getValues(){return "0,1,2,3,4,5";}   //Coming soon...
 
 String ultos(unsigned long v){ char ret[11]; sprintf(ret, "%ld", v); return ret; }
-
 String  getPage(){
   String page="<html lang='us-US'><head><meta charset='utf-8'/>\n<title>" + hostname + "</title>\n";
   page += "<style>body{background-color:#fff7e6; font-family:Arial,Helvetica,Sans-Serif; Color:#000088;}\n";
@@ -98,7 +94,7 @@ String  getPage(){
   page += "function showHelp(){refresh(120); document.getElementById('about').style.display='block';}\n";
   page += "function saveSSID(f){\n";
   page += "if((f=f.parentNode)){var s, p=false;\n";
-  page += "for(var i=0; i<f.children.length; i++){\n";red,
+  page += "for(var i=0; i<f.children.length; i++){\n";
   page += "if(f.children[i].type=='password'){\n";
   page += "if (!p) p=f.children[i];\n";
   page += "else if(p.value!=f.children[i].value) p.value='';\n";
@@ -159,10 +155,6 @@ String  getPage(){
    page += "<input type='button' value='Remove' onclick='deleteSSID(this);'>";
    page += "</form></div></td>";
   }page += "</tr></table>";
-  page += "<h2><form method='POST'>Names of Plugs: ";
-  for(short i=0; i<outputCount(); i++)
-   page += "<input type='text' name='plugName" + ultos(i) + "' value='" + outputName[i] + "' style='width:70;'>";
-  page += " - <input type='button' value='Submit' onclick='submit();'></form></h2>";
   page += "<h6><a href='update' onclick='javascript:event.target.port=8081'>Firmware update</a>";
   page += " - <a href='https://github.com/peychart/wifiPowerStrip'>Website here</a></h6>";
   page += "</div></div>\n";
@@ -172,6 +164,7 @@ String  getPage(){
   page += "<tr></tbody></table>\n";
   page += "<h3>Status :</h3>\n";
   page += "<form id='switchs' method='POST'><ul>\n";
+/*
   for (short i=0; i<outputCount(); i++){ bool display;
    page += "<li><table><tbody>\n<tr><td>" + outputName[i] + "</td><td>";
    page += "<div class='onoffswitch delayConf'>\n";
@@ -187,11 +180,13 @@ mber' name='" + outputName[i] + "-max-duration-d' value='" + (display ?ultos((un
 //   page += "<input type='number' name='" + outputName[i] + "-max-duration-mn' value='" + (display ?ultos((unsigned long)maxDurationOn[i]%86400%3600/60) :(String)"0") + "' min='0' max='60' data-unit=60 class='duration' style='display:" + (String)(display ?"inline-block" :"none") + ";' onChange='checkDelay(this);'>" + (String)(display ?"mn &nbsp;" :"") + "</input>\n";
 //   page += "<input type='number' name='" + outputName[i] + "-max-duration-s'  value='" + ((maxDurationOn[i]!=(unsigned int)(-1)) ?ultos((unsigned long)maxDurationOn[i]%86400%3600%60) :(String)"-1") + "' min='-1' max='60' data-unit=1 class='duration' onChange='checkDelay(this);'>" + (String)((maxDurationOn[i]!=(unsigned int)(-1)) ?"s" :"-") + "</input>\n";
 //   page += ")</div>\n</td></tr>\n</tbody></table></li>\n";
- }page += "</form>\n</ul></body></html>";
+ }
+ */
+ page += "</form>\n</ul></body></html>";
   return page;
 }
 
-bool WiFiHost(){setBLUE
+bool WiFiHost(){
   Serial.println();
   Serial.print("No custom SSID defined: ");
   Serial.println("setting soft-AP configuration ... ");
@@ -302,19 +297,56 @@ void  handleRoot(){bool ret=true;
       handleSubmitSSIDConf();
     }server.send(200, "text/html", getPage());
 }
-*/
 
 inline void setRed  (unsigned char v) {analogWrite(RED1,  v); analogWrite(RED2,  v);}
 inline void setGreen(unsigned char v) {analogWrite(GREEN1,v); analogWrite(GREEN2,v);}
 inline void setBlue (unsigned char v) {analogWrite(BLUE1, v); analogWrite(BLUE2, v);}
+inline void turnOff() {setRed(0); setGreen(0); setBlue(0);}
+
+void handleRed()          {prog=fixedRed;   setRed(255);   server.send(200, "text/html", getPage());}
+void handleGreen()        {prog=fixedGreen; setGreen(255); server.send(200, "text/html", getPage());}
+void handleBlue()         {prog=fixedBlue;  setBlue(255);  server.send(200, "text/html", getPage());}
+void handleFlashingRed()  {prog=flashingRed;               server.send(200, "text/html", getPage());}
+void handleFlashingGreen(){prog=flashingGreen;             server.send(200, "text/html", getPage());}
+void handleFlashingBlue() {prog=flashingBlue;              server.send(200, "text/html", getPage());}
+void handleStandard()     {prog=none; turnOff(); greenValue=255;blueValue=redValue=0; server.send(200, "text/html", getPage());}
+
+void flashingRedProg()  {setRed(255);   delay(700); turnOff(); delay(300);}
+void flashingGreenProg(){setGreen(255); delay(700); turnOff(); delay(300);}
+void flashingBlueProg() {setBlue(255);  delay(700); turnOff(); delay(300);}
+
+void standardProg(){
+  for(int i=0; i<255; i++){ // fades out red bring green full when i=255
+    setGreen ( greenValue-- );
+    setRed   ( redValue++   );
+    delay    ( fadingTime[red] );
+  }
+
+  for(short i=0; i<255; i++){  // fades out blue bring red full when i=255
+    setRed  ( redValue--  );
+    setBlue ( blueValue++ );
+    delay   ( fadingTime[blue] );
+  }
+
+  for(short i=0; i<255; i++){  // fades out green bring blue full when i=255
+    setBlue  ( blueValue--  );
+    setGreen ( greenValue++ );
+    delay    ( fadingTime[green] );
+} }
 
 void setup(){
   Serial.begin(115200);
   delay(10);Serial.println("Hello World!");
 
-/*
   //Definition des URL d'entree /Input URL definition
   server.on("/", handleRoot);
+  server.on("/clear", handleStandard);
+  server.on("/red", handleRed);
+  server.on("/green", handleGreen);
+  server.on("/blue", handleBlue);
+  server.on("/flashingRed", handleFlashingRed);
+  server.on("/flashingGreen", handleFlashingGreen);
+  server.on("/flashingBlue", handleFlashingBlue);
   //server.on("/about", [](){ server.send(200, "text/plain", getHelp()); });
 
   //Demarrage du serveur web /Web server start
@@ -323,7 +355,6 @@ void setup(){
 
   //Open config:
   SPIFFS.begin();
-*/
 
   //initialisation des broches /pins init
   pinMode(RED1,   OUTPUT);
@@ -338,47 +369,32 @@ void setup(){
   digitalWrite(RED2,   LOW);
   digitalWrite(GREEN2, LOW);
   digitalWrite(BLUE2,  LOW);
-  greenValue=255;
-  blueValue=0;
-  redValue=0;
-  loopDelay=(loopDelay<1 ?1 :loopDelay);
-/*
+  handleStandard();
+
   //Allow OnTheAir updates:
   MDNS.begin(hostname.c_str());
   httpUpdater.setup(&updater);
   updater.begin();
-*/
 }
 
 unsigned short int count=0;
 void loop(){
-/*
   updater.handleClient();
-setGREEN
-  if(!count--){ count=60000/LOOPDELAY;            //Test connexion/Check WiFi every mn
+
+  if(!count--){ count=(fadingTime[blue]+fadingTime[green]+fadingTime[red])*3*255;            //Test connexion/Check WiFi every mn
     if(WiFi.status() != WL_CONNECTED && (!WiFiAP || !WifiAPDelay--))
       WiFiConnect();
   }
 
   server.handleClient();                         //Traitement des requetes /HTTP treatment
-*/
 
-  for(int i=0; i<255; i++){ // fades out red bring green full when i=255
-    setGreen ( greenValue-- );
-    setRed   ( redValue++   );
-    delay    ( fadingTime );
-  }if(mainColor==red)   delay(loopDelay*1000);
-
-  for(short i=0; i<255; i++){  // fades out blue bring red full when i=255
-    setRed  ( redValue--  );
-    setBlue ( blueValue++ );
-    delay   ( fadingTime );
-  }if(mainColor==blue)  delay(loopDelay*1000);
-
-  for(short i=0; i<255; i++){  // fades out green bring blue full when i=255
-    setBlue  ( blueValue--  );
-    setGreen ( greenValue++ );
-    delay    ( fadingTime );
-  }if(mainColor==green) delay(loopDelay*1000);
-
+  switch(prog){
+    case fixedBlue:
+    case fixedGreen:
+    case fixedRed:      delay(1000); break;
+    case flashingRed:   flashingRedProg(); break;
+    case flashingGreen: flashingGreenProg(); break;
+    case flashingBlue:  flashingBlueProg(); break;
+    default: standardProg();
+  }
 }
